@@ -1,11 +1,14 @@
 const state = {
   csrf: '',
   user: null,
-  tasks: [],
+  patients: [],
+  appointments: [],
+  dashboard: { today_appointments: 0, completed_this_week: 0, patient_count: 0 },
+  page: 'dashboard',
   filter: 'all',
-  search: '',
-  authMode: 'login',
-  dashboard: { due_today: 0, high_priority: 0, completed_this_week: 0, weekly_goal: 10 },
+  appointmentSearch: '',
+  patientSearch: '',
+  patientFilter: 'active',
 };
 
 const elements = {
@@ -19,195 +22,75 @@ const elements = {
   authSubmit: document.querySelector('#auth-submit'),
   authSwitchCopy: document.querySelector('#auth-switch-copy'),
   authSwitch: document.querySelector('#auth-switch'),
-  taskForm: document.querySelector('#task-form'),
-  taskTitle: document.querySelector('#task-title'),
-  taskDescription: document.querySelector('#task-description'),
-  taskPriority: document.querySelector('#task-priority'),
-  taskDueDate: document.querySelector('#task-due-date'),
-  taskRecurrence: document.querySelector('#task-recurrence'),
   themeToggle: document.querySelector('#theme-toggle'),
-  taskList: document.querySelector('#task-list'),
-  editRecurrence: document.querySelector('#edit-recurrence'),
-  emptyState: document.querySelector('#empty-state'),
-  loadingState: document.querySelector('#loading-state'),
-  toast: document.querySelector('#toast'),
-  editDialog: document.querySelector('#edit-dialog'),
-  editForm: document.querySelector('#edit-form'),
-  editTitle: document.querySelector('#edit-title'),
-  editDescription: document.querySelector('#edit-description'),
-  editPriority: document.querySelector('#edit-priority'),
-  editDueDate: document.querySelector('#edit-due-date'),
-  editError: document.querySelector('#edit-error'),
-  editSubmit: document.querySelector('#edit-submit'),
+  appointmentForm: document.querySelector('#appointment-form'),
+  appointmentPatient: document.querySelector('#appointment-patient'),
+  appointmentReason: document.querySelector('#appointment-reason'),
+  appointmentDate: document.querySelector('#appointment-date'),
+  appointmentNotes: document.querySelector('#appointment-notes'),
+  appointmentList: document.querySelector('#appointment-list'),
+  todayAppointmentList: document.querySelector('#today-appointment-list'),
+  appointmentEmpty: document.querySelector('#appointment-empty'),
+  todayEmpty: document.querySelector('#today-empty'),
+  patientList: document.querySelector('#patient-list'),
+  patientEmpty: document.querySelector('#patient-empty'),
+  patientEmptyTitle: document.querySelector('#patient-empty-title'),
+  patientEmptyCopy: document.querySelector('#patient-empty-copy'),
+  patientDialog: document.querySelector('#patient-dialog'),
+  patientForm: document.querySelector('#patient-form'),
+  patientDialogTitle: document.querySelector('#patient-dialog-title'),
+  patientName: document.querySelector('#patient-name'),
+  patientDob: document.querySelector('#patient-dob'),
+  patientPhone: document.querySelector('#patient-phone'),
+  patientEmail: document.querySelector('#patient-email'),
+  patientAddress: document.querySelector('#patient-address'),
+  patientAllergies: document.querySelector('#patient-allergies'),
+  patientMedicalNotes: document.querySelector('#patient-medical-notes'),
+  patientError: document.querySelector('#patient-error'),
+  patientSubmit: document.querySelector('#patient-submit'),
+  editAppointmentDialog: document.querySelector('#appointment-edit-dialog'),
+  editAppointmentForm: document.querySelector('#appointment-edit-form'),
+  editAppointmentPatient: document.querySelector('#edit-appointment-patient'),
+  editAppointmentPatientName: document.querySelector('#edit-appointment-patient-name'),
+  editAppointmentPatientPhone: document.querySelector('#edit-appointment-patient-phone'),
+  editAppointmentPatientArchived: document.querySelector('#edit-appointment-patient-archived'),
+  editAppointmentReason: document.querySelector('#edit-appointment-reason'),
+  editAppointmentDate: document.querySelector('#edit-appointment-date'),
+  editAppointmentStatus: document.querySelector('#edit-appointment-status'),
+  editAppointmentNotes: document.querySelector('#edit-appointment-notes'),
+  editAppointmentError: document.querySelector('#appointment-edit-error'),
+  editAppointmentSubmit: document.querySelector('#appointment-edit-submit'),
   deleteDialog: document.querySelector('#delete-dialog'),
-  deleteTitle: document.querySelector('#delete-task-title'),
+  deleteAppointmentLabel: document.querySelector('#delete-appointment-label'),
   deleteError: document.querySelector('#delete-error'),
   deleteConfirm: document.querySelector('#delete-confirm'),
+  deletePatientDialog: document.querySelector('#delete-patient-dialog'),
+  deletePatientLabel: document.querySelector('#delete-patient-label'),
+  deletePatientError: document.querySelector('#delete-patient-error'),
+  deletePatientConfirm: document.querySelector('#delete-patient-confirm'),
+  archivePatientDialog: document.querySelector('#archive-patient-dialog'),
+  archivePatientLabel: document.querySelector('#archive-patient-label'),
+  archivePatientError: document.querySelector('#archive-patient-error'),
+  archivePatientConfirm: document.querySelector('#archive-patient-confirm'),
   logoutDialog: document.querySelector('#logout-dialog'),
   logoutError: document.querySelector('#logout-error'),
   logoutConfirm: document.querySelector('#logout-confirm'),
+  loadingState: document.querySelector('#loading-state'),
+  toast: document.querySelector('#toast'),
 };
 
 let toastTimer;
-let editingTaskId = null;
-let deletingTaskId = null;
-
-function initializePriorityPickers() {
-  document.querySelectorAll('.priority-select').forEach((select) => {
-    const picker = document.createElement('div');
-    picker.className = 'priority-picker';
-    const trigger = document.createElement('button');
-    trigger.type = 'button';
-    trigger.className = 'priority-picker-trigger';
-    trigger.setAttribute('aria-label', 'Priority');
-    trigger.setAttribute('aria-haspopup', 'listbox');
-    trigger.setAttribute('aria-expanded', 'false');
-    trigger.setAttribute('aria-controls', `${select.id}-options`);
-    const value = document.createElement('span');
-    const caret = document.createElement('span');
-    caret.className = 'priority-picker-caret';
-    caret.setAttribute('aria-hidden', 'true');
-    caret.textContent = '⌄';
-    trigger.append(value, caret);
-
-    const menu = document.createElement('div');
-    menu.id = `${select.id}-options`;
-    menu.className = 'priority-picker-menu';
-    menu.setAttribute('role', 'listbox');
-    menu.setAttribute('aria-label', 'Priority');
-    menu.hidden = true;
-
-    const options = [...select.options].map((option) => {
-      const choice = document.createElement('button');
-      choice.type = 'button';
-      choice.className = 'priority-picker-choice';
-      choice.dataset.priority = option.value;
-      choice.setAttribute('role', 'option');
-      choice.textContent = option.textContent;
-      choice.addEventListener('click', () => {
-        select.value = option.value;
-        select.dispatchEvent(new Event('change', { bubbles: true }));
-        syncPriorityPicker(select);
-        closePriorityPicker(picker, true);
-      });
-      return choice;
-    });
-    menu.append(...options);
-    picker.append(trigger, menu);
-    select.hidden = true;
-    select.setAttribute('aria-hidden', 'true');
-    select.tabIndex = -1;
-    select.after(picker);
-
-    trigger.addEventListener('click', () => {
-      if (menu.hidden) {
-        closePriorityPickers();
-        menu.hidden = false;
-        trigger.setAttribute('aria-expanded', 'true');
-        menu.querySelector('[aria-selected="true"]')?.focus();
-      } else {
-        closePriorityPicker(picker);
-      }
-    });
-
-    trigger.addEventListener('keydown', (event) => {
-      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-      event.preventDefault();
-      if (menu.hidden) {
-        menu.hidden = false;
-        trigger.setAttribute('aria-expanded', 'true');
-      }
-      const selectedIndex = options.findIndex((choice) => choice.getAttribute('aria-selected') === 'true');
-      const nextIndex = event.key === 'ArrowDown'
-        ? (selectedIndex + 1) % options.length
-        : (selectedIndex - 1 + options.length) % options.length;
-      options[nextIndex].focus();
-    });
-
-    menu.addEventListener('keydown', (event) => {
-      const currentIndex = options.indexOf(document.activeElement);
-      let nextIndex = currentIndex;
-      if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % options.length;
-      else if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + options.length) % options.length;
-      else if (event.key === 'Home') nextIndex = 0;
-      else if (event.key === 'End') nextIndex = options.length - 1;
-      else if (event.key === 'Escape') {
-        event.preventDefault();
-        closePriorityPicker(picker, true);
-        return;
-      } else if (event.key === 'Tab') {
-        closePriorityPicker(picker);
-        return;
-      } else {
-        return;
-      }
-      event.preventDefault();
-      options[nextIndex].focus();
-    });
-
-    syncPriorityPicker(select);
-  });
-
-  document.addEventListener('pointerdown', (event) => {
-    if (!(event.target instanceof Element) || !event.target.closest('.priority-picker')) {
-      closePriorityPickers();
-    }
-  });
-}
-
-function syncPriorityPicker(select) {
-  const picker = select.nextElementSibling;
-  if (!picker?.classList.contains('priority-picker')) return;
-  const selected = select.selectedOptions[0];
-  picker.querySelector('.priority-picker-trigger span:first-child').textContent = selected.textContent;
-  picker.querySelectorAll('.priority-picker-choice').forEach((choice) => {
-    choice.setAttribute('aria-selected', String(choice.dataset.priority === select.value));
-  });
-}
-
-function closePriorityPicker(picker, restoreFocus = false) {
-  const menu = picker.querySelector('.priority-picker-menu');
-  if (menu.hidden) return;
-  menu.hidden = true;
-  const trigger = picker.querySelector('.priority-picker-trigger');
-  trigger.setAttribute('aria-expanded', 'false');
-  if (restoreFocus) trigger.focus();
-}
-
-function closePriorityPickers() {
-  document.querySelectorAll('.priority-picker').forEach((picker) => closePriorityPicker(picker));
-}
-
-initializePriorityPickers();
-
-function applyTheme(theme, persist = false) {
-  const isDark = theme === 'dark';
-  document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
-  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-  elements.themeToggle.setAttribute('aria-pressed', String(isDark));
-  elements.themeToggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
-  elements.themeToggle.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
-  document.querySelector('meta[name="theme-color"]').content = isDark ? '#151b18' : '#f6f7f4';
-  if (persist) {
-    try {
-      localStorage.setItem('daymark-theme', isDark ? 'dark' : 'light');
-    } catch {
-      showToast('Theme changed, but this browser could not save your preference.');
-    }
-  }
-}
-
-applyTheme(document.documentElement.dataset.theme || 'light');
-elements.themeToggle.addEventListener('click', () => {
-  const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-  applyTheme(nextTheme, true);
-});
+let editingPatientId = null;
+let deletingPatientId = null;
+let archivingPatientId = null;
+let deletingAppointmentId = null;
+let editingAppointmentId = null;
 
 function showToast(message) {
   elements.toast.textContent = message;
   elements.toast.classList.add('visible');
   window.clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => elements.toast.classList.remove('visible'), 2800);
+  toastTimer = window.setTimeout(() => elements.toast.classList.remove('visible'), 3200);
 }
 
 async function api(action, { method = 'GET', body } = {}) {
@@ -237,27 +120,317 @@ async function api(action, { method = 'GET', body } = {}) {
   return payload;
 }
 
+function applyTheme(theme, persist = false) {
+  const dark = theme === 'dark';
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+  elements.themeToggle.setAttribute('aria-pressed', String(dark));
+  elements.themeToggle.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+  elements.themeToggle.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  document.querySelector('meta[name="theme-color"]').content = dark ? '#151f20' : '#f3f7f8';
+  if (persist) {
+    try {
+      localStorage.setItem('medisched-theme', dark ? 'dark' : 'light');
+    } catch {
+      showToast('Theme changed, but this browser could not save your preference.');
+    }
+  }
+}
+
+applyTheme(document.documentElement.dataset.theme || 'light');
+elements.themeToggle.addEventListener('click', () => {
+  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
+});
+
+function updateHeader() {
+  const name = state.user?.name || 'Clinic staff';
+  document.querySelector('#profile-name').textContent = name;
+  document.querySelector('#avatar').textContent = Array.from(name)[0]?.toUpperCase() || 'M';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  document.querySelector('#greeting').replaceChildren(
+    document.createTextNode(`${greeting}, `),
+    Object.assign(document.createElement('span'), { textContent: `${name.split(' ')[0]}.` }),
+  );
+  document.querySelector('#date-label').textContent = new Intl.DateTimeFormat(undefined, {
+    weekday: 'long', month: 'long', day: 'numeric',
+  }).format(new Date()).toUpperCase();
+}
+
+function localDateString(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatDate(value, options = { weekday: 'short', month: 'short', day: 'numeric' }) {
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+  return new Intl.DateTimeFormat(undefined, options).format(new Date(year, month - 1, day));
+}
+
+function formatTime(value) {
+  const [hour, minute] = value.slice(11, 16).split(':').map(Number);
+  return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(2000, 0, 1, hour, minute));
+}
+
+function appointmentLocalValue(value) {
+  return value.slice(0, 16).replace(' ', 'T');
+}
+
+function updateDashboard() {
+  document.querySelector('#dashboard-today').textContent = state.dashboard.today_appointments;
+  document.querySelector('#dashboard-week').textContent = state.dashboard.completed_this_week;
+  document.querySelector('#dashboard-patients').textContent = state.dashboard.patient_count;
+  document.querySelector('#nav-patient-count').textContent = state.dashboard.patient_count;
+  document.querySelector('#nav-appointment-count').textContent = state.appointments.filter((item) => item.status === 'scheduled').length;
+}
+
+function refreshPatientOptions() {
+  const activePatients = state.patients.filter((patient) => !patient.archived_at);
+  const selected = elements.appointmentPatient.value;
+  const placeholder = new Option('Select a patient', '', true, true);
+  placeholder.disabled = true;
+  placeholder.hidden = true;
+  const options = [placeholder];
+  for (const patient of activePatients) options.push(new Option(patient.full_name, patient.id));
+  elements.appointmentPatient.replaceChildren(...options);
+  if ([...elements.appointmentPatient.options].some((option) => option.value === selected)) {
+    elements.appointmentPatient.value = selected;
+  }
+}
+
+function makeButton(label, text, className = 'icon-button task-action') {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = className;
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  button.textContent = text;
+  return button;
+}
+
+function createAppointmentCard(appointment) {
+  const article = document.createElement('article');
+  article.className = 'appointment-card';
+
+  const time = document.createElement('div');
+  time.className = 'appointment-time';
+  const timeValue = document.createElement('strong');
+  timeValue.textContent = formatTime(appointment.scheduled_at);
+  const dateValue = document.createElement('span');
+  dateValue.textContent = formatDate(appointment.scheduled_at);
+  time.append(timeValue, dateValue);
+
+  const content = document.createElement('div');
+  content.className = 'appointment-content';
+  const patient = document.createElement('h3');
+  patient.textContent = appointment.patient_name;
+  const reason = document.createElement('p');
+  reason.textContent = appointment.reason;
+  content.append(patient, reason);
+  const metadata = document.createElement('div');
+  metadata.className = 'appointment-meta';
+  const status = document.createElement('span');
+  status.className = `meta-badge status-${appointment.status}`;
+  status.textContent = appointment.status;
+  metadata.append(status);
+  content.append(metadata);
+  if (appointment.notes) {
+    const note = document.createElement('p');
+    note.className = 'appointment-note';
+    note.textContent = appointment.notes;
+    content.append(note);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'appointment-actions';
+  if (appointment.status === 'scheduled') {
+    const complete = makeButton('Mark appointment completed', '✓');
+    complete.addEventListener('click', () => updateAppointment(appointment.id, {
+      patient_id: appointment.patient_id,
+      reason: appointment.reason,
+      notes: appointment.notes,
+      scheduled_at: appointmentLocalValue(appointment.scheduled_at),
+      status: 'completed',
+    }));
+    actions.append(complete);
+  }
+  const edit = makeButton('Edit appointment', '✎');
+  edit.addEventListener('click', () => openAppointmentEditor(appointment));
+  const remove = makeButton('Remove appointment', '×', 'icon-button task-action delete-action');
+  remove.addEventListener('click', () => openAppointmentDelete(appointment));
+  actions.append(edit, remove);
+  article.append(time, content, actions);
+  return article;
+}
+
+function filteredAppointments() {
+  const today = localDateString();
+  const term = state.appointmentSearch.toLocaleLowerCase();
+  return state.appointments.filter((appointment) => {
+    const appointmentDate = appointment.scheduled_at.slice(0, 10);
+    if (state.filter === 'today' &&
+        (appointment.status !== 'scheduled' || appointmentDate !== today)) return false;
+    if (state.filter === 'upcoming' &&
+        (appointment.status !== 'scheduled' || appointmentDate <= today)) return false;
+    if (['scheduled', 'completed', 'cancelled'].includes(state.filter) &&
+        appointment.status !== state.filter) return false;
+    return `${appointment.patient_name} ${appointment.reason} ${appointment.notes}`
+      .toLocaleLowerCase().includes(term);
+  }).sort((left, right) => {
+    const statusRank = { scheduled: 0, completed: 1, cancelled: 2 };
+    if (statusRank[left.status] !== statusRank[right.status]) return statusRank[left.status] - statusRank[right.status];
+    if (left.status === 'scheduled') return left.scheduled_at.localeCompare(right.scheduled_at);
+    return right.scheduled_at.localeCompare(left.scheduled_at);
+  });
+}
+
+function renderAppointments() {
+  const filtered = filteredAppointments();
+  elements.appointmentList.replaceChildren(...filtered.map(createAppointmentCard));
+  elements.appointmentEmpty.hidden = filtered.length !== 0;
+  document.querySelectorAll('.filter-tab[data-filter]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.filter === state.filter);
+  });
+
+  const today = localDateString();
+  const todayAppointments = state.appointments
+    .filter((appointment) => appointment.status === 'scheduled' && appointment.scheduled_at.slice(0, 10) === today)
+    .sort((left, right) => left.scheduled_at.localeCompare(right.scheduled_at));
+  elements.todayAppointmentList.replaceChildren(...todayAppointments.slice(0, 5).map(createAppointmentCard));
+  document.querySelector('#today-list-count').textContent = todayAppointments.length;
+  elements.todayEmpty.hidden = todayAppointments.length !== 0;
+  updateDashboard();
+}
+
+function createPatientCard(patient) {
+  const card = document.createElement('article');
+  card.className = 'patient-card';
+  const identity = document.createElement('div');
+  identity.className = 'patient-identity';
+  const avatar = document.createElement('span');
+  avatar.className = 'patient-avatar';
+  avatar.textContent = Array.from(patient.full_name)[0]?.toUpperCase() || 'P';
+  const nameBlock = document.createElement('div');
+  nameBlock.style.minWidth = '0';
+  const name = document.createElement('h3');
+  name.textContent = patient.full_name;
+  if (patient.archived_at) {
+    const archivedBadge = document.createElement('span');
+    archivedBadge.className = 'patient-archived-badge';
+    archivedBadge.textContent = 'Archived';
+    name.append(' ', archivedBadge);
+  }
+  const birth = document.createElement('p');
+  birth.textContent = patient.date_of_birth ? `DOB · ${formatDate(patient.date_of_birth, { year: 'numeric', month: 'short', day: 'numeric' })}` : 'Date of birth not added';
+  nameBlock.append(name, birth);
+  identity.append(avatar, nameBlock);
+
+  const contact = document.createElement('div');
+  contact.className = 'patient-contact';
+  const phone = document.createElement('span');
+  phone.textContent = patient.phone || 'No phone number';
+  const email = document.createElement('span');
+  email.textContent = patient.email || 'No email';
+  contact.append(phone, email);
+
+  const history = document.createElement('span');
+  history.className = 'patient-history';
+  history.textContent = `${patient.appointment_count} ${Number(patient.appointment_count) === 1 ? 'appointment' : 'appointments'} · ${patient.allergies ? 'medical history recorded' : 'no history recorded'}`;
+  const actions = document.createElement('div');
+  actions.className = 'patient-actions';
+  const edit = makeButton('Edit patient record', '✎');
+  edit.addEventListener('click', () => openPatientEditor(patient));
+  actions.append(edit);
+  if (patient.archived_at) {
+    const restore = makeButton('Restore patient record', '↶');
+    restore.addEventListener('click', () => updatePatientArchive(patient, false));
+    actions.append(restore);
+  } else {
+    const archive = makeButton('Archive patient record', '▣');
+    archive.addEventListener('click', () => openPatientArchive(patient));
+    actions.append(archive);
+  }
+  if (Number(patient.appointment_count) === 0) {
+    const remove = makeButton('Delete patient record permanently', '×', 'icon-button task-action delete-action');
+    remove.addEventListener('click', () => openPatientDelete(patient));
+    actions.append(remove);
+  }
+  card.append(identity, contact, history, actions);
+  return card;
+}
+
+function renderPatients() {
+  const term = state.patientSearch.toLocaleLowerCase();
+  const patients = state.patients.filter((patient) =>
+    (state.patientFilter === 'archived' ? Boolean(patient.archived_at) : !patient.archived_at) &&
+    `${patient.full_name} ${patient.phone} ${patient.email}`.toLocaleLowerCase().includes(term));
+  elements.patientList.replaceChildren(...patients.map(createPatientCard));
+  elements.patientEmpty.hidden = patients.length !== 0;
+  elements.patientEmptyTitle.textContent = state.patientFilter === 'archived'
+    ? 'No archived patient records'
+    : state.patientSearch ? 'No matching patient records' : 'No patient records yet';
+  elements.patientEmptyCopy.textContent = state.patientFilter === 'archived'
+    ? 'Archived records will appear here. You can restore them at any time.'
+    : state.patientSearch ? 'Try another name, phone number, or email.' : 'Add a patient record before booking their first appointment.';
+  document.querySelectorAll('[data-patient-filter]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.patientFilter === state.patientFilter);
+  });
+  updateDashboard();
+}
+
+function setPage(page) {
+  state.page = page;
+  document.querySelectorAll('.nav-item').forEach((button) => {
+    button.classList.toggle('active', button.dataset.page === page);
+  });
+  document.querySelector('#dashboard-view').hidden = page !== 'dashboard';
+  document.querySelector('#appointments-view').hidden = page !== 'appointments';
+  document.querySelector('#patients-view').hidden = page !== 'patients';
+  if (page === 'appointments') renderAppointments();
+  if (page === 'patients') renderPatients();
+}
+
+async function refreshDashboard() {
+  state.dashboard = await api('dashboard');
+  updateDashboard();
+}
+
+async function refreshAfterSave(refreshers) {
+  const results = await Promise.allSettled(refreshers);
+  const failures = results.filter((result) => result.status === 'rejected');
+  if (failures.length) {
+    failures.forEach((result) => console.error('A saved change could not be fully refreshed.', result.reason));
+    showToast('The change was saved, but some details did not refresh. Reload the page to update them.');
+  }
+}
+
+async function loadWorkspace() {
+  const [patientsPayload, appointmentsPayload, dashboardPayload] = await Promise.all([
+    api('patients'), api('appointments'), api('dashboard'),
+  ]);
+  state.patients = patientsPayload.patients;
+  state.appointments = appointmentsPayload.appointments;
+  state.dashboard = dashboardPayload;
+  refreshPatientOptions();
+  renderAppointments();
+  renderPatients();
+  elements.loadingState.hidden = true;
+}
+
 function setAuthMode(mode) {
-  state.authMode = mode;
   const registering = mode === 'register';
+  elements.authTitle.textContent = registering ? 'A fresh start.' : 'Welcome back.';
+  elements.authEyebrow.textContent = registering ? 'SET UP YOUR CLINIC ACCESS' : 'CLINIC STAFF ACCESS';
+  elements.authIntro.textContent = registering
+    ? 'Create a staff account for your MediSched workspace.'
+    : 'Sign in to manage your clinic schedule.';
   elements.nameField.hidden = !registering;
   document.querySelector('#auth-name').required = registering;
-  elements.authTitle.textContent = registering ? 'A fresh start.' : 'Welcome back.';
-  elements.authEyebrow.textContent = registering ? 'MAKE YOUR SPACE' : 'YOUR SPACE STARTS HERE';
-  elements.authIntro.textContent = registering
-    ? 'Create your account and make room for what matters.'
-    : 'Sign in to pick up where you left off.';
-  const arrow = document.createElement('span');
-  arrow.setAttribute('aria-hidden', 'true');
-  arrow.textContent = '→';
-  elements.authSubmit.replaceChildren(
-    document.createTextNode(registering ? 'Create account ' : 'Sign in '),
-    arrow,
-  );
-  elements.authSwitchCopy.textContent = registering ? 'Already have an account?' : 'New to Daymark?';
-  elements.authSwitch.textContent = registering ? 'Sign in' : 'Create an account';
-  elements.authError.textContent = '';
   document.querySelector('#auth-password').setAttribute('autocomplete', registering ? 'new-password' : 'current-password');
+  elements.authSubmit.firstChild.textContent = registering ? 'Create staff account ' : 'Sign in ';
+  elements.authSwitchCopy.textContent = registering ? 'Already have a staff account?' : 'New clinic workspace?';
+  elements.authSwitch.textContent = registering ? 'Sign in' : 'Create staff account';
+  elements.authError.textContent = '';
+  elements.authForm.dataset.mode = mode;
 }
 
 function openAuth() {
@@ -266,213 +439,186 @@ function openAuth() {
   window.setTimeout(() => document.querySelector('#auth-email').focus(), 50);
 }
 
-function updateHeader() {
-  const name = state.user?.name || 'Your account';
-  document.querySelector('#profile-name').textContent = name;
-  document.querySelector('#avatar').textContent = Array.from(name)[0]?.toUpperCase() || 'D';
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  document.querySelector('#greeting').replaceChildren(
-    document.createTextNode(`${greeting}, `),
-    Object.assign(document.createElement('span'), { textContent: name.split(' ')[0] + '.' }),
-  );
-  document.querySelector('#date-label').textContent = new Intl.DateTimeFormat(undefined, {
-    weekday: 'long', month: 'long', day: 'numeric',
-  }).format(new Date()).toUpperCase();
-}
-
-function updateCounts() {
-  const pending = state.tasks.filter((task) => task.status === 'pending').length;
-  const completed = state.tasks.length - pending;
-  const percent = state.tasks.length ? Math.round((completed / state.tasks.length) * 100) : 0;
-  const today = localDateString();
-  const dueToday = state.tasks.filter((task) => task.status === 'pending' && task.due_date === today).length;
-  document.querySelector('#all-count').textContent = state.tasks.length;
-  document.querySelector('#pending-count').textContent = pending;
-  document.querySelector('#completed-count').textContent = completed;
-  document.querySelector('#today-count').textContent = dueToday;
-  document.querySelector('#progress-value').textContent = `${percent}%`;
-  document.querySelector('#progress-ring').style.setProperty('--progress', `${percent * 3.6}deg`);
-  document.querySelector('#progress-copy').textContent = state.tasks.length
-    ? completed === state.tasks.length ? 'Everything is complete!' : `${pending} ${pending === 1 ? 'task' : 'tasks'} to go`
-    : 'You’ve got this';
-  document.querySelector('#dashboard-today').textContent = state.dashboard.due_today;
-  document.querySelector('#dashboard-priority').textContent = state.dashboard.high_priority;
-  document.querySelector('#dashboard-week').textContent = state.dashboard.completed_this_week;
-  document.querySelector('#week-progress-bar').style.width =
-    `${Math.min(100, state.dashboard.completed_this_week / state.dashboard.weekly_goal * 100)}%`;
-}
-
-function localDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function formatDueDate(value) {
-  const [year, month, day] = value.split('-').map(Number);
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
-    .format(new Date(year, month - 1, day));
-}
-
-function createTaskElement(task) {
-  const article = document.createElement('article');
-  article.className = `task-item${task.status === 'completed' ? ' is-completed' : ''}`;
-  article.dataset.taskId = task.id;
-
-  const checkbox = document.createElement('button');
-  checkbox.type = 'button';
-  checkbox.className = 'task-check';
-  checkbox.setAttribute('aria-label', task.status === 'completed' ? 'Mark task in progress' : 'Mark task complete');
-  checkbox.textContent = task.status === 'completed' ? '✓' : '';
-  checkbox.addEventListener('click', () => updateTask(task.id, {
-    status: task.status === 'completed' ? 'pending' : 'completed',
-  }));
-  article.append(checkbox);
-
-  const content = document.createElement('div');
-  content.className = 'task-content';
-  const title = document.createElement('h3');
-  title.textContent = task.title;
-  content.append(title);
-  if (task.description) {
-    const description = document.createElement('p');
-    description.textContent = task.description;
-    content.append(description);
+function openPatientEditor(patient = null) {
+  editingPatientId = patient?.id ?? null;
+  elements.patientDialogTitle.textContent = patient ? 'Edit patient record' : 'Add a patient';
+  elements.patientSubmit.textContent = patient ? 'Save changes' : 'Save patient';
+  elements.patientError.textContent = '';
+  elements.patientForm.reset();
+  if (patient) {
+    elements.patientName.value = patient.full_name;
+    elements.patientDob.value = patient.date_of_birth || '';
+    elements.patientPhone.value = patient.phone;
+    elements.patientEmail.value = patient.email;
+    elements.patientAddress.value = patient.address;
+    elements.patientAllergies.value = patient.allergies;
+    elements.patientMedicalNotes.value = patient.medical_notes;
   }
-  const metadata = document.createElement('div');
-  metadata.className = 'task-metadata';
-  const priority = document.createElement('span');
-  priority.className = `priority-badge priority-${task.priority}`;
-  priority.textContent = `${task.priority} priority`;
-  metadata.append(priority);
-  if (task.due_date) {
-    const dueDate = document.createElement('span');
-    const overdue = task.status === 'pending' && task.due_date < localDateString();
-    dueDate.className = `due-date-badge${overdue ? ' is-overdue' : ''}`;
-    dueDate.textContent = overdue ? `Overdue · ${formatDueDate(task.due_date)}` : `Due ${formatDueDate(task.due_date)}`;
-    metadata.append(dueDate);
-  }
-  if (task.recurrence !== 'none') {
-    const repeat = document.createElement('span');
-    repeat.className = 'recurrence-badge';
-    repeat.textContent = `↻ ${task.recurrence}`;
-    metadata.append(repeat);
-  }
-  content.append(metadata);
-  article.append(content);
-
-  const actions = document.createElement('div');
-  actions.className = 'task-actions';
-  const edit = document.createElement('button');
-  edit.type = 'button';
-  edit.className = 'icon-button task-action';
-  edit.setAttribute('aria-label', 'Edit task');
-  edit.title = 'Edit task';
-  edit.textContent = '✎';
-  edit.addEventListener('click', () => openEditDialog(task));
-  const remove = document.createElement('button');
-  remove.type = 'button';
-  remove.className = 'icon-button task-action delete-action';
-  remove.setAttribute('aria-label', 'Delete task');
-  remove.title = 'Delete task';
-  remove.textContent = '×';
-  remove.addEventListener('click', () => openDeleteDialog(task));
-  actions.append(edit, remove);
-  article.append(actions);
-  return article;
+  elements.patientDialog.showModal();
+  elements.patientName.focus();
 }
 
-function setFilter(filter) {
-  state.filter = filter;
-  document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.filter === filter));
-  renderTasks();
+function openPatientDelete(patient) {
+  deletingPatientId = patient.id;
+  elements.deletePatientLabel.textContent = patient.full_name;
+  elements.deletePatientError.textContent = '';
+  elements.deletePatientConfirm.disabled = false;
+  elements.deletePatientDialog.showModal();
 }
 
-function visibleTasks() {
-  const today = localDateString();
-  return state.tasks.filter((task) => {
-    if (state.filter === 'all') return true;
-    if (state.filter === 'pending' || state.filter === 'completed') return task.status === state.filter;
-    if (state.filter === 'today') return task.status === 'pending' && task.due_date === today;
-    return false;
-  }).filter((task) => `${task.title} ${task.description}`
-    .toLocaleLowerCase().includes(state.search.toLocaleLowerCase()))
-    .sort((left, right) => {
-      const statusOrder = { pending: 0, completed: 1 };
-      const priorityOrder = { high: 0, medium: 1, low: 2 };
-      return statusOrder[left.status] - statusOrder[right.status]
-        || priorityOrder[left.priority] - priorityOrder[right.priority]
-        || (left.due_date || '9999-12-31').localeCompare(right.due_date || '9999-12-31')
-        || right.created_at.localeCompare(left.created_at)
-        || Number(right.id) - Number(left.id);
-    });
+function openPatientArchive(patient) {
+  archivingPatientId = patient.id;
+  elements.archivePatientLabel.textContent = patient.full_name;
+  elements.archivePatientError.textContent = '';
+  elements.archivePatientConfirm.disabled = false;
+  elements.archivePatientDialog.showModal();
 }
 
-function renderTasks() {
-  updateCounts();
-  const filtered = visibleTasks();
-  elements.taskList.replaceChildren(...filtered.map(createTaskElement));
-  document.querySelector('#visible-count').textContent = filtered.length;
-  const labels = {
-    all: 'All tasks',
-    today: 'Today',
-    pending: 'In progress',
-    completed: 'Completed',
+function openAppointmentEditor(appointment) {
+  editingAppointmentId = appointment.id;
+  elements.editAppointmentForm.reset();
+  elements.editAppointmentPatient.value = String(appointment.patient_id);
+  elements.editAppointmentPatientName.textContent = appointment.patient_name;
+  elements.editAppointmentPatientPhone.textContent = appointment.patient_phone || 'Patient record linked to this visit';
+  const patient = state.patients.find((item) => String(item.id) === String(appointment.patient_id));
+  elements.editAppointmentPatientArchived.hidden = !patient?.archived_at;
+  elements.editAppointmentReason.value = appointment.reason;
+  elements.editAppointmentDate.value = appointmentLocalValue(appointment.scheduled_at);
+  elements.editAppointmentStatus.value = appointment.status;
+  elements.editAppointmentNotes.value = appointment.notes;
+  elements.editAppointmentError.textContent = '';
+  elements.editAppointmentSubmit.disabled = false;
+  elements.editAppointmentDialog.showModal();
+  elements.editAppointmentReason.focus();
+}
+
+function openAppointmentDelete(appointment) {
+  deletingAppointmentId = appointment.id;
+  elements.deleteAppointmentLabel.textContent = `${appointment.patient_name} · ${appointment.reason}`;
+  elements.deleteError.textContent = '';
+  elements.deleteConfirm.disabled = false;
+  elements.deleteDialog.showModal();
+}
+
+function patientFormData() {
+  return {
+    full_name: elements.patientName.value,
+    date_of_birth: elements.patientDob.value,
+    phone: elements.patientPhone.value,
+    email: elements.patientEmail.value,
+    address: elements.patientAddress.value,
+    allergies: elements.patientAllergies.value,
+    medical_notes: elements.patientMedicalNotes.value,
   };
-  document.querySelector('#list-title').firstChild.textContent = `${labels[state.filter] || 'Tasks'} `;
-  document.querySelector('#list-eyebrow').textContent = 'YOUR LIST';
-  elements.emptyState.hidden = filtered.length > 0;
-  if (state.tasks.length === 0) {
-    document.querySelector('#empty-title').textContent = 'A fresh start.';
-    document.querySelector('#empty-copy').textContent = 'Add your first task above and make today yours.';
-  } else if (filtered.length === 0) {
-    document.querySelector('#empty-title').textContent = state.search ? 'Nothing found.' : 'All caught up.';
-    document.querySelector('#empty-copy').textContent = state.search
-      ? 'Try another search or check your filters.'
-      : 'There’s nothing here right now. Enjoy the breathing room.';
-  }
 }
 
-async function loadWorkspace() {
-  const [taskPayload, dashboardPayload] = await Promise.all([
-    api('tasks'),
-    api('dashboard'),
-  ]);
-  state.tasks = taskPayload.tasks;
-  state.dashboard = dashboardPayload;
-  elements.loadingState.hidden = true;
-  renderTasks();
-}
+elements.authSwitch.addEventListener('click', () => {
+  setAuthMode(elements.authForm.dataset.mode === 'register' ? 'login' : 'register');
+});
 
-async function refreshDashboard() {
-  state.dashboard = await api('dashboard');
-  updateCounts();
-}
-
-async function refreshAfterMutation(refreshers) {
-  const results = await Promise.allSettled(refreshers);
-  const failures = results.filter((result) => result.status === 'rejected');
-  if (failures.length) {
-    failures.forEach((result) => console.error('A saved change could not be fully refreshed.', result.reason));
-    showToast('The change was saved, but some details could not refresh. Reload the page to update them.');
-  }
-}
-
-async function updateTask(id, changes, errorElement = null) {
+elements.authForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  elements.authError.textContent = '';
+  const form = new FormData(elements.authForm);
+  const registering = elements.authForm.dataset.mode === 'register';
+  const body = { email: form.get('email'), password: form.get('password') };
+  if (registering) body.name = form.get('name');
+  elements.authSubmit.disabled = true;
   try {
-    const payload = await api('update-task', { method: 'POST', body: { id, ...changes } });
-    const { task } = payload;
-    state.tasks = state.tasks.map((item) => item.id === task.id ? task : item);
-    if (payload.next_task) state.tasks.unshift(payload.next_task);
-    renderTasks();
-    if (changes.status) {
-      showToast(payload.next_task ? 'Completed. Your next repeat is ready.' : changes.status === 'completed' ? 'One more thing done. Nice work!' : 'Task moved back to your list.');
-      await refreshAfterMutation([refreshDashboard()]);
-    } else {
-      showToast('Task updated.');
+    const payload = await api(registering ? 'register' : 'login', { method: 'POST', body });
+    state.user = payload.user;
+    state.csrf = payload.csrf;
+    elements.authDialog.close();
+    elements.authForm.reset();
+    updateHeader();
+    await loadWorkspace();
+  } catch (error) {
+    elements.authError.textContent = error.message;
+  } finally {
+    elements.authSubmit.disabled = false;
+  }
+});
+
+elements.appointmentForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!state.patients.some((patient) => !patient.archived_at)) {
+    showToast(state.patients.length
+      ? 'Restore an archived patient or add a new patient before booking.'
+      : 'Add a patient record before booking an appointment.');
+    if (state.patients.length === 0) openPatientEditor();
+    else {
+      state.patientFilter = 'active';
+      setPage('patients');
     }
+    return;
+  }
+  const submit = elements.appointmentForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  try {
+    const payload = await api('create-appointment', {
+      method: 'POST',
+      body: {
+        patient_id: elements.appointmentPatient.value,
+        reason: elements.appointmentReason.value,
+        notes: elements.appointmentNotes.value,
+        scheduled_at: elements.appointmentDate.value,
+      },
+    });
+    state.appointments.unshift(payload.appointment);
+    elements.appointmentForm.reset();
+    refreshPatientOptions();
+    elements.appointmentDate.value = defaultAppointmentTime();
+    renderAppointments();
+    showToast('Appointment added to the clinic schedule.');
+    await refreshAfterSave([refreshDashboard()]);
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+async function savePatient(event) {
+  event.preventDefault();
+  elements.patientError.textContent = '';
+  elements.patientSubmit.disabled = true;
+  try {
+    const action = editingPatientId === null ? 'create-patient' : 'update-patient';
+    const body = patientFormData();
+    if (editingPatientId !== null) body.id = editingPatientId;
+    const payload = await api(action, { method: 'POST', body });
+    if (editingPatientId === null) state.patients.push({ ...payload.patient, appointment_count: 0 });
+    else state.patients = state.patients.map((patient) => patient.id === payload.patient.id
+      ? { ...patient, ...payload.patient }
+      : patient);
+    elements.patientDialog.close();
+    refreshPatientOptions();
+    renderPatients();
+    showToast(editingPatientId === null ? 'Patient record created.' : 'Patient record updated.');
+    await refreshAfterSave([refreshDashboard()]);
+  } catch (error) {
+    elements.patientError.textContent = error.message;
+  } finally {
+    elements.patientSubmit.disabled = false;
+  }
+}
+elements.patientForm.addEventListener('submit', savePatient);
+document.querySelector('#patient-cancel').addEventListener('click', () => elements.patientDialog.close());
+elements.patientDialog.addEventListener('close', () => {
+  editingPatientId = null;
+  elements.patientForm.reset();
+  elements.patientError.textContent = '';
+});
+
+async function updateAppointment(id, changes, errorElement = null) {
+  try {
+    const payload = await api('update-appointment', { method: 'POST', body: { id, ...changes } });
+    state.appointments = state.appointments.map((appointment) => appointment.id === payload.appointment.id
+      ? payload.appointment
+      : appointment);
+    renderAppointments();
+    showToast(changes.status === 'completed' ? 'Appointment marked complete.' : 'Appointment updated.');
+    if (changes.status) await refreshAfterSave([refreshDashboard()]);
     return true;
   } catch (error) {
     if (errorElement) errorElement.textContent = error.message;
@@ -481,178 +627,157 @@ async function updateTask(id, changes, errorElement = null) {
   }
 }
 
-function openEditDialog(task) {
-  editingTaskId = task.id;
-  elements.editTitle.value = task.title;
-  elements.editDescription.value = task.description;
-  elements.editPriority.value = task.priority;
-  syncPriorityPicker(elements.editPriority);
-  elements.editDueDate.value = task.due_date || '';
-  elements.editRecurrence.value = task.recurrence || 'none';
-  elements.editError.textContent = '';
-  elements.editSubmit.disabled = false;
-  elements.editDialog.showModal();
-  elements.editTitle.focus();
-}
-
-function openDeleteDialog(task) {
-  deletingTaskId = task.id;
-  elements.deleteTitle.textContent = task.title;
-  elements.deleteError.textContent = '';
-  elements.deleteConfirm.disabled = false;
-  elements.deleteDialog.showModal();
-}
-
-elements.editForm.addEventListener('submit', async (event) => {
+elements.editAppointmentForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (editingTaskId === null) return;
-  elements.editError.textContent = '';
-  elements.editSubmit.disabled = true;
-  const saved = await updateTask(editingTaskId, {
-    title: elements.editTitle.value,
-    description: elements.editDescription.value,
-    priority: elements.editPriority.value,
-    due_date: elements.editDueDate.value,
-    recurrence: elements.editRecurrence.value,
-  }, elements.editError);
-  elements.editSubmit.disabled = false;
+  if (editingAppointmentId === null) return;
+  elements.editAppointmentError.textContent = '';
+  elements.editAppointmentSubmit.disabled = true;
+  const saved = await updateAppointment(editingAppointmentId, {
+    patient_id: elements.editAppointmentPatient.value,
+    reason: elements.editAppointmentReason.value,
+    scheduled_at: elements.editAppointmentDate.value,
+    status: elements.editAppointmentStatus.value,
+    notes: elements.editAppointmentNotes.value,
+  }, elements.editAppointmentError);
+  elements.editAppointmentSubmit.disabled = false;
   if (saved) {
-    elements.editDialog.close();
-    editingTaskId = null;
+    elements.editAppointmentDialog.close();
+    editingAppointmentId = null;
   }
 });
-
-document.querySelector('#edit-cancel').addEventListener('click', () => elements.editDialog.close());
-elements.editDialog.addEventListener('close', () => {
-  editingTaskId = null;
-  elements.editForm.reset();
-  elements.editError.textContent = '';
+document.querySelector('#appointment-edit-cancel').addEventListener('click', () => elements.editAppointmentDialog.close());
+elements.editAppointmentDialog.addEventListener('close', () => {
+  editingAppointmentId = null;
+  elements.editAppointmentForm.reset();
+  elements.editAppointmentError.textContent = '';
 });
 
-async function deleteTask() {
-  if (deletingTaskId === null) return;
-  const id = deletingTaskId;
-  elements.deleteError.textContent = '';
+async function deleteAppointment() {
+  if (deletingAppointmentId === null) return;
   elements.deleteConfirm.disabled = true;
+  elements.deleteError.textContent = '';
   try {
-    await api('delete-task', { method: 'POST', body: { id } });
-    state.tasks = state.tasks.filter((task) => task.id !== id);
+    await api('delete-appointment', { method: 'POST', body: { id: deletingAppointmentId } });
+    state.appointments = state.appointments.filter((appointment) => appointment.id !== deletingAppointmentId);
     elements.deleteDialog.close();
-    renderTasks();
-    showToast('Task removed.');
-    await refreshAfterMutation([refreshDashboard()]);
+    renderAppointments();
+    showToast('Appointment removed.');
+    await refreshAfterSave([refreshDashboard()]);
   } catch (error) {
     elements.deleteError.textContent = error.message;
   } finally {
     elements.deleteConfirm.disabled = false;
   }
 }
-
 document.querySelector('#delete-cancel').addEventListener('click', () => elements.deleteDialog.close());
-elements.deleteConfirm.addEventListener('click', deleteTask);
+elements.deleteConfirm.addEventListener('click', deleteAppointment);
 elements.deleteDialog.addEventListener('close', () => {
-  deletingTaskId = null;
-  elements.deleteTitle.textContent = '';
+  deletingAppointmentId = null;
+  elements.deleteAppointmentLabel.textContent = '';
   elements.deleteError.textContent = '';
 });
 
-elements.authSwitch.addEventListener('click', () => setAuthMode(state.authMode === 'login' ? 'register' : 'login'));
-elements.authForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  elements.authError.textContent = '';
-  const form = new FormData(elements.authForm);
-  const action = state.authMode === 'register' ? 'register' : 'login';
-  const body = { email: form.get('email'), password: form.get('password') };
-  if (state.authMode === 'register') body.name = form.get('name');
-
-  elements.authSubmit.disabled = true;
+async function deletePatient() {
+  if (deletingPatientId === null) return;
+  elements.deletePatientConfirm.disabled = true;
+  elements.deletePatientError.textContent = '';
   try {
-    const payload = await api(action, { method: 'POST', body });
-    state.user = payload.user;
-    state.csrf = payload.csrf;
-    elements.authDialog.close();
-    elements.authForm.reset();
-    updateHeader();
-    await loadWorkspace();
+    await api('delete-patient', { method: 'POST', body: { id: deletingPatientId } });
+    state.patients = state.patients.filter((patient) => patient.id !== deletingPatientId);
+    elements.deletePatientDialog.close();
+    refreshPatientOptions();
+    renderPatients();
+    showToast('Patient record permanently deleted.');
+    await refreshAfterSave([refreshDashboard()]);
   } catch (error) {
-    if (state.user) {
-      elements.loadingState.hidden = true;
-      showToast(error.message);
-    } else {
-      elements.authError.replaceChildren(document.createTextNode(error.message));
-      if (error.code === 'account_not_found') {
-        const createAccount = document.createElement('button');
-        createAccount.type = 'button';
-        createAccount.className = 'auth-error-action';
-        createAccount.textContent = 'Create an account';
-        createAccount.addEventListener('click', () => {
-          setAuthMode('register');
-          document.querySelector('#auth-name').focus();
-        });
-        elements.authError.append(document.createTextNode(' '), createAccount);
-      }
-    }
+    elements.deletePatientError.textContent = error.message;
   } finally {
-    elements.authSubmit.disabled = false;
+    elements.deletePatientConfirm.disabled = false;
   }
+}
+document.querySelector('#delete-patient-cancel').addEventListener('click', () => elements.deletePatientDialog.close());
+elements.deletePatientConfirm.addEventListener('click', deletePatient);
+elements.deletePatientDialog.addEventListener('close', () => {
+  deletingPatientId = null;
+  elements.deletePatientLabel.textContent = '';
+  elements.deletePatientError.textContent = '';
 });
 
-elements.taskForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const title = elements.taskTitle.value.trim();
-  if (!title) return;
-  const submit = elements.taskForm.querySelector('button[type="submit"]');
-  submit.disabled = true;
+async function updatePatientArchive(patient, archived, errorElement = null) {
   try {
-    const payload = await api('create-task', {
+    const payload = await api(archived ? 'archive-patient' : 'restore-patient', {
       method: 'POST',
-      body: {
-        title,
-        description: elements.taskDescription.value.trim(),
-        priority: elements.taskPriority.value,
-        due_date: elements.taskDueDate.value,
-        recurrence: elements.taskRecurrence.value,
-      },
+      body: { id: patient.id },
     });
-    state.tasks.unshift(payload.task);
-    elements.taskForm.reset();
-    syncPriorityPicker(elements.taskPriority);
-    renderTasks();
-    showToast('Added to your list.');
-    elements.taskTitle.focus();
-    await refreshAfterMutation([refreshDashboard()]);
+    state.patients = state.patients.map((item) => item.id === patient.id
+      ? { ...item, archived_at: payload.archived_at }
+      : item);
+    refreshPatientOptions();
+    renderPatients();
+    showToast(archived ? 'Patient record archived. Appointment history was kept.' : 'Patient record restored.');
+    await refreshAfterSave([refreshDashboard()]);
+    return true;
   } catch (error) {
-    showToast(error.message);
+    if (errorElement) errorElement.textContent = error.message;
+    else showToast(error.message);
+    return false;
+  }
+}
+
+elements.archivePatientConfirm.addEventListener('click', async () => {
+  if (archivingPatientId === null) return;
+  const patient = state.patients.find((item) => item.id === archivingPatientId);
+  if (!patient) return;
+  elements.archivePatientConfirm.disabled = true;
+  elements.archivePatientError.textContent = '';
+  try {
+    const saved = await updatePatientArchive(patient, true, elements.archivePatientError);
+    if (saved) elements.archivePatientDialog.close();
+  } catch (error) {
+    elements.archivePatientError.textContent = error.message;
   } finally {
-    submit.disabled = false;
+    elements.archivePatientConfirm.disabled = false;
   }
 });
-
-document.querySelectorAll('.nav-item').forEach((button) => {
-  button.addEventListener('click', () => setFilter(button.dataset.filter));
+document.querySelector('#archive-patient-cancel').addEventListener('click', () => elements.archivePatientDialog.close());
+elements.archivePatientDialog.addEventListener('close', () => {
+  archivingPatientId = null;
+  elements.archivePatientLabel.textContent = '';
+  elements.archivePatientError.textContent = '';
 });
 
-document.querySelector('#search-input').addEventListener('input', (event) => {
-  state.search = event.target.value.trim();
-  renderTasks();
+document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => setPage(button.dataset.page)));
+document.querySelectorAll('[data-open-page="appointments"]').forEach((button) => button.addEventListener('click', () => setPage('appointments')));
+document.querySelectorAll('.filter-tab[data-filter]').forEach((button) => button.addEventListener('click', () => {
+  state.filter = button.dataset.filter;
+  renderAppointments();
+}));
+document.querySelector('#appointment-search').addEventListener('input', (event) => {
+  state.appointmentSearch = event.target.value.trim();
+  renderAppointments();
 });
-
-document.addEventListener('keydown', (event) => {
-  if (event.key.toLowerCase() !== 'n' || event.ctrlKey || event.metaKey || event.altKey) return;
-  const target = event.target;
-  const typing = target instanceof HTMLElement &&
-    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
-  if (typing || document.querySelector('dialog[open]')) return;
-  event.preventDefault();
-  elements.taskTitle.focus();
+document.querySelector('#patient-search').addEventListener('input', (event) => {
+  state.patientSearch = event.target.value.trim();
+  renderPatients();
 });
+document.querySelectorAll('[data-patient-filter]').forEach((button) => button.addEventListener('click', () => {
+  state.patientFilter = button.dataset.patientFilter;
+  renderPatients();
+}));
+document.querySelector('#add-patient-button').addEventListener('click', () => openPatientEditor());
+function openAppointmentBooking() {
+  setPage('appointments');
+  document.querySelector('#booking-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  elements.appointmentPatient.focus({ preventScroll: true });
+}
+document.querySelector('#dashboard-book-button').addEventListener('click', openAppointmentBooking);
+document.querySelector('#appointments-book-button').addEventListener('click', openAppointmentBooking);
 
 document.querySelector('#logout-button').addEventListener('click', () => {
   elements.logoutError.textContent = '';
   elements.logoutConfirm.disabled = false;
   elements.logoutDialog.showModal();
 });
-
 document.querySelector('#logout-cancel').addEventListener('click', () => elements.logoutDialog.close());
 elements.logoutConfirm.addEventListener('click', async () => {
   elements.logoutError.textContent = '';
@@ -660,7 +785,8 @@ elements.logoutConfirm.addEventListener('click', async () => {
   try {
     const payload = await api('logout', { method: 'POST', body: {} });
     state.user = null;
-    state.tasks = [];
+    state.patients = [];
+    state.appointments = [];
     state.csrf = payload.csrf;
     elements.logoutDialog.close();
     openAuth();
@@ -671,9 +797,28 @@ elements.logoutConfirm.addEventListener('click', async () => {
   }
 });
 
+document.addEventListener('keydown', (event) => {
+  if (event.key.toLowerCase() !== 'n' || event.ctrlKey || event.metaKey || event.altKey) return;
+  const target = event.target;
+  const typing = target instanceof HTMLElement &&
+    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+  if (typing || document.querySelector('dialog[open]')) return;
+  event.preventDefault();
+  if (state.page === 'patients') openPatientEditor();
+  else openAppointmentBooking();
+});
+
 elements.authDialog.addEventListener('cancel', (event) => {
   if (!state.user) event.preventDefault();
 });
+
+function defaultAppointmentTime() {
+  const date = new Date();
+  date.setMinutes(0, 0, 0);
+  date.setHours(date.getHours() + 1);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
 
 async function initialize() {
   try {
@@ -692,5 +837,6 @@ async function initialize() {
   }
 }
 
+elements.appointmentDate.value = defaultAppointmentTime();
 updateHeader();
 initialize();
