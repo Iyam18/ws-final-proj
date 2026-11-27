@@ -16,8 +16,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/styles.css?v=patient-select-clean-1">
-  <script src="assets/app.js?v=patient-select-clean-1" defer></script>
+  <link rel="stylesheet" href="assets/styles.css?v=button-field-interactions-1">
+  <script src="assets/app.js?v=patient-address-required-1" defer></script>
 </head>
 <body>
   <main class="app-shell">
@@ -174,7 +174,7 @@
         <label class="field" for="patient-phone">Phone<input id="patient-phone" name="phone" type="tel" pattern="(09[0-9]{9}|\+639[0-9]{9})" maxlength="13" autocomplete="tel" placeholder="09XXXXXXXXX or +639XXXXXXXXX" title="Enter a Philippine mobile number beginning with 09 or +639"></label>
       </div>
       <label class="field" for="patient-email">Email<input id="patient-email" name="email" type="email" maxlength="254" autocomplete="email"></label>
-      <label class="field" for="patient-address">Address<input id="patient-address" name="address" type="text" maxlength="255" autocomplete="street-address"></label>
+      <label class="field" for="patient-address">Address<input id="patient-address" name="address" type="text" maxlength="255" autocomplete="street-address" required></label>
       <label class="field" for="patient-allergies">Allergies &amp; medical conditions <span class="optional-label">OPTIONAL</span><textarea id="patient-allergies" name="allergies" maxlength="2000" rows="4" placeholder="List known allergies, ongoing illnesses, or chronic conditions"></textarea></label>
       <label class="field" for="patient-medical-notes">Relevant care notes <span class="optional-label">OPTIONAL</span><textarea id="patient-medical-notes" name="medical_notes" maxlength="2000" rows="3"></textarea></label>
       <p id="patient-error" class="form-error" role="alert"></p>

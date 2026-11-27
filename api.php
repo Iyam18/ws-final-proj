@@ -312,7 +312,7 @@ try {
         $dob = date_value($data, 'date_of_birth');
         $phone = optional_philippine_phone($data, 'phone');
         $email = optional_email($data, 'email');
-        $address = text_value($data, 'address', 255, false);
+        $address = text_value($data, 'address', 255);
         $allergies = text_value($data, 'allergies', 2000, false);
         $notes = text_value($data, 'medical_notes', 2000, false);
         if ($action === 'create-patient') {

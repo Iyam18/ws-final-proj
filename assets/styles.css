@@ -96,9 +96,17 @@ h2 { font-family: Manrope, sans-serif; }
 .field input::placeholder { color: #a6b2b4; }
 .field input:focus, .field select:focus, .field textarea:focus, #auth-form input:focus { border-color: #80b8b2; box-shadow: 0 0 0 3px #e7f4f2; }
 .patient-select-control { position: relative; display: block; }
-.patient-select-control select.patient-select { min-height: 43px; padding: 0 34px 0 12px; appearance: none; border-radius: 9px; background: var(--surface-soft); cursor: pointer; }
+.patient-select-control select.patient-select { min-height: 43px; padding: 0 34px 0 12px; appearance: none; border-radius: 9px; background: var(--surface-soft); cursor: pointer; transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease, transform .2s ease; }
+@media (hover: hover) {
+  .patient-select-control select.patient-select:hover { transform: translateY(-1px); border-color: #80b8b2; background: var(--paper); }
+  .patient-select-control select.patient-select:hover:not(:focus) { box-shadow: 0 3px 12px #167c8010; }
+  .patient-select-control:hover .patient-select-chevron { color: var(--teal); transform: translateY(-50%) rotate(180deg); }
+}
 .patient-select-control select.patient-select:invalid { color: #89999d; }
-.patient-select-chevron { position: absolute; top: 50%; right: 12px; z-index: 1; transform: translateY(-50%); color: #809295; font-size: 13px; pointer-events: none; }
+.patient-select-chevron { position: absolute; top: 50%; right: 12px; z-index: 1; transform: translateY(-50%); color: #809295; font-size: 13px; pointer-events: none; transition: color .2s ease, transform .2s ease; }
+.field input:hover:not(:focus), .field select:not(.patient-select):hover:not(:focus),
+.field textarea:hover:not(:focus), #auth-form input:hover:not(:focus),
+.search-box:hover:not(:focus-within) { border-color: #bdcece; }
 .appointment-patient-readonly { display: flex; min-width: 0; min-height: 43px; align-items: center; gap: 9px; padding: 5px 9px; border: 1px solid var(--field-line); border-radius: 9px; background: var(--surface-muted); }
 .appointment-patient-copy { display: grid; min-width: 0; flex: 1; gap: 2px; }
 .appointment-patient-copy strong { overflow: hidden; color: #30494f; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
@@ -229,8 +237,15 @@ h2 { font-family: Manrope, sans-serif; }
   border-color: var(--field-line); background: var(--surface-soft); color: var(--ink);
 }
 :root[data-theme="dark"] .patient-select-control select.patient-select:invalid { color: #9aa8aa; }
+:root[data-theme="dark"] .patient-select-control select.patient-select:hover { border-color: #5da6a0; background: #263634; }
+:root[data-theme="dark"] .patient-select-control select.patient-select:hover:not(:focus) { box-shadow: 0 3px 12px #0003; }
 :root[data-theme="dark"] .patient-select-chevron { color: #8bc6c0; }
 :root[data-theme="dark"] .field input::placeholder { color: #809394; }
+:root[data-theme="dark"] .field input:hover:not(:focus),
+:root[data-theme="dark"] .field select:not(.patient-select):hover:not(:focus),
+:root[data-theme="dark"] .field textarea:hover:not(:focus),
+:root[data-theme="dark"] #auth-form input:hover:not(:focus),
+:root[data-theme="dark"] .search-box:hover:not(:focus-within) { border-color: #526b69; }
 :root[data-theme="dark"] .field input:focus, :root[data-theme="dark"] .field select:focus,
 :root[data-theme="dark"] .field textarea:focus, :root[data-theme="dark"] #auth-form input:focus { border-color: #5da6a0; box-shadow: 0 0 0 3px #294a47; }
 :root[data-theme="dark"] .filter-tab { color: #adbcbb; }
@@ -241,6 +256,14 @@ h2 { font-family: Manrope, sans-serif; }
 :root[data-theme="dark"] .delete-action:hover { background: #472e2b; color: #f0aaa0; }
 :root[data-theme="dark"] .delete-task-preview { border-color: #493733; background: #2d2422; color: #d9c9c4; }
 :root[data-theme="dark"] .auth-dialog::backdrop, :root[data-theme="dark"] .action-dialog::backdrop { background: #050909df; }
+
+button:not(:disabled) { transition: background-color .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease, transform .18s ease; }
+button:not(:disabled):focus-visible { outline: 2px solid #80b8b2; outline-offset: 2px; }
+@media (hover: hover) {
+  button:not(:disabled):hover { transform: translateY(-1px); }
+}
+button:not(:disabled):active { transform: scale(.98); }
+:root[data-theme="dark"] button:not(:disabled):focus-visible { outline-color: #5da6a0; }
 
 body, .sidebar, .main-panel, .topbar, .dashboard-card, .booking-card, .schedule-panel,
 .patient-card, .appointment-card, .nav-item, .filter-tabs, .search-box, .auth-dialog, .action-dialog {
@@ -304,4 +327,6 @@ body, .sidebar, .main-panel, .topbar, .dashboard-card, .booking-card, .schedule-
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+  button:not(:disabled):hover, button:not(:disabled):active,
+  .patient-select-control select.patient-select:hover { transform: none; }
 }
