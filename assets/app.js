@@ -28,6 +28,7 @@ const elements = {
   appointmentReason: document.querySelector('#appointment-reason'),
   appointmentDate: document.querySelector('#appointment-date'),
   appointmentNotes: document.querySelector('#appointment-notes'),
+  appointmentError: document.querySelector('#appointment-error'),
   appointmentList: document.querySelector('#appointment-list'),
   todayAppointmentList: document.querySelector('#today-appointment-list'),
   appointmentEmpty: document.querySelector('#appointment-empty'),
@@ -36,6 +37,11 @@ const elements = {
   patientEmpty: document.querySelector('#patient-empty'),
   patientEmptyTitle: document.querySelector('#patient-empty-title'),
   patientEmptyCopy: document.querySelector('#patient-empty-copy'),
+  patientEmptyAction: document.querySelector('#patient-empty-action'),
+  appointmentEmptyTitle: document.querySelector('#appointment-empty-title'),
+  appointmentEmptyCopy: document.querySelector('#appointment-empty-copy'),
+  appointmentEmptyAction: document.querySelector('#appointment-empty-action'),
+  gettingStarted: document.querySelector('#getting-started'),
   patientDialog: document.querySelector('#patient-dialog'),
   patientForm: document.querySelector('#patient-form'),
   patientDialogTitle: document.querySelector('#patient-dialog-title'),
@@ -243,7 +249,7 @@ function createAppointmentCard(appointment) {
   const actions = document.createElement('div');
   actions.className = 'appointment-actions';
   if (appointment.status === 'scheduled') {
-    const complete = makeButton('Mark appointment completed', '✓');
+    const complete = makeButton('Mark appointment completed', 'Mark complete', 'primary-button appointment-complete-button');
     complete.addEventListener('click', () => updateAppointment(appointment.id, {
       patient_id: appointment.patient_id,
       reason: appointment.reason,
@@ -287,6 +293,15 @@ function renderAppointments() {
   const filtered = filteredAppointments();
   elements.appointmentList.replaceChildren(...filtered.map(createAppointmentCard));
   elements.appointmentEmpty.hidden = filtered.length !== 0;
+  elements.appointmentEmptyTitle.textContent = state.appointments.length
+    ? 'No appointments match this view'
+    : 'No appointments yet';
+  elements.appointmentEmptyCopy.textContent = state.appointments.length
+    ? 'Try another filter or search, or book a new visit.'
+    : 'Book your first visit to start filling the clinic schedule.';
+  elements.appointmentEmptyAction.textContent = state.patients.some((patient) => !patient.archived_at)
+    ? 'Book an appointment'
+    : 'Add a patient';
   document.querySelectorAll('.filter-tab[data-filter]').forEach((button) => {
     button.classList.toggle('active', button.dataset.filter === state.filter);
   });
@@ -299,6 +314,19 @@ function renderAppointments() {
   document.querySelector('#today-list-count').textContent = todayAppointments.length;
   elements.todayEmpty.hidden = todayAppointments.length !== 0;
   updateDashboard();
+  renderGettingStarted();
+}
+
+function renderGettingStarted() {
+  const hasPatient = state.patients.some((patient) => !patient.archived_at);
+  const hasAppointment = state.appointments.length > 0;
+  elements.gettingStarted.hidden = hasPatient && hasAppointment;
+  document.querySelector('#onboarding-patient-step').classList.toggle('complete', hasPatient);
+  document.querySelector('#onboarding-appointment-step').classList.toggle('complete', hasAppointment);
+  document.querySelector('#onboarding-patient-button').textContent = hasPatient ? 'View patients' : 'Add patient';
+  document.querySelector('#onboarding-appointment-button').textContent = hasAppointment
+    ? 'View appointments'
+    : 'Book appointment';
 }
 
 function createPatientCard(patient) {
@@ -371,10 +399,14 @@ function renderPatients() {
   elements.patientEmptyCopy.textContent = state.patientFilter === 'archived'
     ? 'Archived records will appear here. You can restore them at any time.'
     : state.patientSearch ? 'Try another name, phone number, or email.' : 'Add a patient record before booking their first appointment.';
+  const hasArchivedPatients = state.patients.some((patient) => patient.archived_at);
+  elements.patientEmptyAction.hidden = state.patientFilter === 'archived' || Boolean(state.patientSearch);
+  elements.patientEmptyAction.textContent = hasArchivedPatients ? 'View archived patients' : 'Add patient';
   document.querySelectorAll('[data-patient-filter]').forEach((button) => {
     button.classList.toggle('active', button.dataset.patientFilter === state.patientFilter);
   });
   updateDashboard();
+  renderGettingStarted();
 }
 
 function setPage(page) {
@@ -541,6 +573,15 @@ elements.authForm.addEventListener('submit', async (event) => {
 
 elements.appointmentForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+  updateAppointmentMinimum();
+  if (new Date(elements.appointmentDate.value).getTime() <= Date.now()) {
+    elements.appointmentError.textContent = 'This time has already passed. Choose a future date and time.';
+    elements.appointmentError.hidden = false;
+    elements.appointmentDate.focus();
+    return;
+  }
+  elements.appointmentError.textContent = '';
+  elements.appointmentError.hidden = true;
   if (!state.patients.some((patient) => !patient.archived_at)) {
     showToast(state.patients.length
       ? 'Restore an archived patient or add a new patient before booking.'
@@ -567,12 +608,15 @@ elements.appointmentForm.addEventListener('submit', async (event) => {
     state.appointments.unshift(payload.appointment);
     elements.appointmentForm.reset();
     refreshPatientOptions();
+    updateAppointmentMinimum();
     elements.appointmentDate.value = defaultAppointmentTime();
+    elements.appointmentError.hidden = true;
     renderAppointments();
     showToast('Appointment added to the clinic schedule.');
     await refreshAfterSave([refreshDashboard()]);
   } catch (error) {
-    showToast(error.message);
+    elements.appointmentError.textContent = error.message;
+    elements.appointmentError.hidden = false;
   } finally {
     submit.disabled = false;
   }
@@ -756,6 +800,10 @@ document.querySelector('#appointment-search').addEventListener('input', (event) 
   state.appointmentSearch = event.target.value.trim();
   renderAppointments();
 });
+elements.appointmentDate.addEventListener('input', () => {
+  elements.appointmentError.textContent = '';
+  elements.appointmentError.hidden = true;
+});
 document.querySelector('#patient-search').addEventListener('input', (event) => {
   state.patientSearch = event.target.value.trim();
   renderPatients();
@@ -766,12 +814,38 @@ document.querySelectorAll('[data-patient-filter]').forEach((button) => button.ad
 }));
 document.querySelector('#add-patient-button').addEventListener('click', () => openPatientEditor());
 function openAppointmentBooking() {
+  if (!state.patients.some((patient) => !patient.archived_at)) {
+    state.patientFilter = 'active';
+    setPage('patients');
+    openPatientEditor();
+    return;
+  }
   setPage('appointments');
+  updateAppointmentMinimum();
+  if (!elements.appointmentDate.value) elements.appointmentDate.value = defaultAppointmentTime();
   document.querySelector('#booking-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
   elements.appointmentPatient.focus({ preventScroll: true });
 }
 document.querySelector('#dashboard-book-button').addEventListener('click', openAppointmentBooking);
 document.querySelector('#appointments-book-button').addEventListener('click', openAppointmentBooking);
+document.querySelector('#today-empty-action').addEventListener('click', openAppointmentBooking);
+elements.appointmentEmptyAction.addEventListener('click', openAppointmentBooking);
+elements.patientEmptyAction.addEventListener('click', () => {
+  if (state.patients.some((patient) => patient.archived_at)) {
+    state.patientFilter = 'archived';
+    renderPatients();
+  } else {
+    openPatientEditor();
+  }
+});
+document.querySelector('#onboarding-patient-button').addEventListener('click', () => {
+  setPage('patients');
+  if (!state.patients.some((patient) => !patient.archived_at)) openPatientEditor();
+});
+document.querySelector('#onboarding-appointment-button').addEventListener('click', () => {
+  if (state.appointments.length) setPage('appointments');
+  else openAppointmentBooking();
+});
 
 document.querySelector('#logout-button').addEventListener('click', () => {
   elements.logoutError.textContent = '';
@@ -812,12 +886,20 @@ elements.authDialog.addEventListener('cancel', (event) => {
   if (!state.user) event.preventDefault();
 });
 
+function localDateTimeValue(date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function updateAppointmentMinimum() {
+  elements.appointmentDate.min = localDateTimeValue(new Date());
+}
+
 function defaultAppointmentTime() {
   const date = new Date();
   date.setMinutes(0, 0, 0);
   date.setHours(date.getHours() + 1);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
+  return localDateTimeValue(date);
 }
 
 async function initialize() {

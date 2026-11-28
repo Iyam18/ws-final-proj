@@ -16,8 +16,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/styles.css?v=button-field-interactions-1">
-  <script src="assets/app.js?v=patient-address-required-1" defer></script>
+  <link rel="stylesheet" href="assets/styles.css?v=readability-onboarding-1">
+  <script src="assets/app.js?v=readability-onboarding-1" defer></script>
 </head>
 <body>
   <main class="app-shell">
@@ -67,6 +67,26 @@
             <button id="dashboard-book-button" class="primary-button" type="button"><span aria-hidden="true">＋</span> Book appointment</button>
           </div>
 
+          <section id="getting-started" class="getting-started" aria-labelledby="getting-started-title" hidden>
+            <div class="getting-started-heading">
+              <p class="eyebrow">GETTING STARTED</p>
+              <h2 id="getting-started-title">Your first steps</h2>
+              <p>Set up your clinic workspace with these two quick tasks.</p>
+            </div>
+            <ol class="getting-started-list">
+              <li id="onboarding-patient-step" class="getting-started-step">
+                <span class="step-indicator" aria-hidden="true">1</span>
+                <div><h3>Add your first patient</h3><p>Create a patient record to get started.</p></div>
+                <button id="onboarding-patient-button" class="secondary-button" type="button">Add patient</button>
+              </li>
+              <li id="onboarding-appointment-step" class="getting-started-step">
+                <span class="step-indicator" aria-hidden="true">2</span>
+                <div><h3>Book your first appointment</h3><p>Choose a patient and add a visit to the schedule.</p></div>
+                <button id="onboarding-appointment-button" class="secondary-button" type="button">Book appointment</button>
+              </li>
+            </ol>
+          </section>
+
           <section class="dashboard-grid" aria-label="Clinic overview">
             <article class="dashboard-card today-card">
               <div class="dashboard-card-top"><span class="dashboard-icon">◷</span><span class="dashboard-label">TODAY'S VISITS</span></div>
@@ -88,7 +108,7 @@
               <button class="text-button" type="button" data-open-page="appointments">View all appointments →</button>
             </div>
             <div id="today-appointment-list" class="appointment-list"></div>
-            <div id="today-empty" class="empty-state" hidden><div class="empty-illustration" aria-hidden="true">✓</div><h3>No visits scheduled today</h3><p>Your clinic schedule is clear for now.</p></div>
+            <div id="today-empty" class="empty-state" hidden><div class="empty-illustration" aria-hidden="true">✓</div><h3>No visits scheduled today</h3><p>Your clinic schedule is clear for now.</p><button id="today-empty-action" class="secondary-button" type="button">Book an appointment</button></div>
           </section>
         </div>
 
@@ -119,6 +139,7 @@
                 <input id="appointment-notes" name="notes" type="text" maxlength="2000" placeholder="Keep visit notes concise and relevant">
               </label>
               <p class="privacy-hint">Only authorized staff signed into this workspace can view these records.</p>
+              <p id="appointment-error" class="form-error appointment-form-error" role="alert" hidden></p>
               <button class="primary-button book-submit" type="submit"><span aria-hidden="true">＋</span> Add to schedule</button>
             </form>
           </section>
@@ -134,7 +155,7 @@
             <label class="search-box"><span aria-hidden="true">⌕</span><span class="sr-only">Search appointments</span><input id="appointment-search" type="search" placeholder="Search visits..." autocomplete="off"></label>
           </div>
           <div id="appointment-list" class="appointment-list"></div>
-          <div id="appointment-empty" class="empty-state" hidden><div class="empty-illustration" aria-hidden="true">▦</div><h3>No appointments found</h3><p>Try another filter or book a new visit.</p></div>
+          <div id="appointment-empty" class="empty-state" hidden><div class="empty-illustration" aria-hidden="true">▦</div><h3 id="appointment-empty-title">No appointments found</h3><p id="appointment-empty-copy">Try another filter or book a new visit.</p><button id="appointment-empty-action" class="secondary-button" type="button">Book an appointment</button></div>
         </section>
 
         <section id="patients-view" hidden>
@@ -151,7 +172,7 @@
             <button class="filter-tab" type="button" data-patient-filter="archived">Archived</button>
           </div>
           <div id="patient-list" class="patient-list"></div>
-          <div id="patient-empty" class="empty-state" hidden><div class="empty-illustration" aria-hidden="true">♡</div><h3 id="patient-empty-title">No patient records yet</h3><p id="patient-empty-copy">Add a patient record before booking their first appointment.</p></div>
+          <div id="patient-empty" class="empty-state" hidden><div class="empty-illustration" aria-hidden="true">♡</div><h3 id="patient-empty-title">No patient records yet</h3><p id="patient-empty-copy">Add a patient record before booking their first appointment.</p><button id="patient-empty-action" class="secondary-button" type="button">Add patient</button></div>
         </section>
 
         <div id="loading-state" class="loading-state">Preparing your clinic workspace…</div>
